@@ -11,10 +11,12 @@ import com.example.news.api.ApiClient;
 import com.example.news.api.ApiInterface;
 import com.example.news.models.Article;
 import com.example.news.models.News;
+import com.google.gson.Gson;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import io.paperdb.Paper;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -31,6 +33,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        Paper.init(this);
 
         recyclerView = findViewById(R.id.recyclerView);
         layoutManager = new LinearLayoutManager(MainActivity.this);
@@ -57,9 +61,15 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                     articles = response.body().getArticles();
+                    
+
                     adapter = new Adapter(articles, MainActivity.this);
                     recyclerView.setAdapter(adapter);
                     adapter.notifyDataSetChanged();
+
+
+                    // save to cache
+                    Paper.book().write("cache", new Gson().toJson(response.body()));
 
 
                 } else {
@@ -69,7 +79,19 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<News> call, Throwable t) {
+                Toast.makeText(MainActivity.this, "No Internet ", Toast.LENGTH_SHORT).show();
 
+                // read from cache if no internet
+                String cache = Paper.book().read("cache");
+                if(cache != null && !cache.isEmpty()) {
+                    News news = new Gson().fromJson(cache, News.class);
+                    articles = news.getArticles();
+
+                    adapter = new Adapter(articles, MainActivity.this);
+                    recyclerView.setAdapter(adapter);
+                    adapter.notifyDataSetChanged();
+                    
+                }
             }
         });
 
